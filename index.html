@@ -669,20 +669,28 @@
             padding: 10px;
         }
 
-        .media-gallery-grid img,
-        .media-gallery-grid video {
+        .media-gallery-grid > div { /* Target the wrapper divs */
             width: 100%;
             height: 200px;
-            object-fit: cover;
             border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            background: var(--subtle);
             cursor: pointer;
             transition: transform 0.2s;
         }
 
-        .media-gallery-grid img:hover,
-        .media-gallery-grid video:hover {
+        .media-gallery-grid > div:hover {
             transform: scale(1.05);
             z-index: 2;
+        }
+
+        .media-gallery-grid img,
+        .media-gallery-grid video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover;
+            display: block;
         }
         
         .entry-media img, 
@@ -1756,37 +1764,59 @@
         function createMediaElement(url, onLoadCallback) {
             const type = getMediaType(url);
             let element;
+            const container = document.createElement('div');
+            container.className = 'media-wrapper loading';
+            container.style.position = 'relative';
+            container.style.minHeight = '200px';
+            container.style.display = 'flex';
+            container.style.alignItems = 'center';
+            container.style.justifyContent = 'center';
+            container.style.background = 'var(--subtle)';
+            container.style.borderRadius = '10px';
 
             if (type === 'video') {
                 element = document.createElement('video');
                 element.controls = true;
                 element.preload = 'metadata'; 
-                element.className = 'loading';
+                element.style.width = '100%';
+                element.style.height = 'auto';
+                element.style.borderRadius = '10px';
                 
                 element.onloadeddata = () => {
+                    container.classList.remove('loading');
+                    container.style.minHeight = 'auto';
                     if (onLoadCallback) onLoadCallback(element);
                 };
                 element.onerror = () => {
-                    console.log("Video failed to load: " + url);
+                    container.innerHTML = '<div style="color:var(--text); padding:1rem; text-align:center;"><i class="fas fa-exclamation-triangle"></i><br>Video failed to load</div>';
                 };
             } else {
                 element = document.createElement('img');
                 element.alt = "Memory media";
-                element.className = 'loading';
                 element.loading = "lazy";
+                element.style.width = '100%';
+                element.style.height = 'auto';
+                element.style.borderRadius = '10px';
+                element.style.cursor = 'pointer';
+                element.style.opacity = '0';
+                element.style.transition = 'opacity 0.3s';
                 
                 element.onload = () => {
+                    container.classList.remove('loading');
+                    container.style.minHeight = 'auto';
+                    element.style.opacity = '1';
                     if (onLoadCallback) onLoadCallback(element);
                 };
                 element.onerror = () => {
-                   console.log("Image failed to load: " + url);
+                    container.innerHTML = '<div style="color:var(--text); padding:1rem; text-align:center;"><i class="fas fa-image"></i><br>Image failed to load</div>';
                 };
                 
                 element.onclick = () => openLightbox(url);
             }
             
             element.src = url;
-            return element;
+            container.appendChild(element);
+            return container; // Return wrapper instead of raw element
         }
 
         function loadEntry(date) {
@@ -1834,10 +1864,8 @@
                                 galleryDiv.className = 'media-gallery-grid';
                                 
                                 validMedia.forEach(url => {
-                                    const el = createMediaElement(url, (loadedEl) => {
-                                        loadedEl.classList.remove('loading');
-                                    });
-                                    galleryDiv.appendChild(el);
+                                    const wrapper = createMediaElement(url);
+                                    galleryDiv.appendChild(wrapper);
                                 });
                                 
                                 entryMedia.appendChild(galleryDiv);
@@ -1847,13 +1875,11 @@
 
                             } else {
                                 const url = validMedia[0];
-                                const el = createMediaElement(url, (loadedEl) => {
-                                    setTimeout(() => {
-                                        loadedEl.classList.remove('loading');
-                                        entryMedia.appendChild(loadedEl);
-                                        entryMedia.classList.add('visible');
-                                    }, 150);
-                                });
+                                const wrapper = createMediaElement(url);
+                                entryMedia.appendChild(wrapper);
+                                setTimeout(() => {
+                                    entryMedia.classList.add('visible');
+                                }, 150);
                             }
                         } else {
                             entryMedia.innerHTML = '<div class="no-media">No media for this entry</div>';
